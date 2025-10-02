@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Complaints Heatmap with SLA</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+  <style>
+    #map { height: 100vh; width: 100%; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+
+  <script>
+    const map = L.map("map").setView([20.5937, 78.9629], 5);
+
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "&copy; OpenStreetMap contributors"
+    }).addTo(map);
+
+    let heatLayer;
+
+    async function loadHeatmap() {
+      try {
+        const res = await fetch("http://localhost:3000/api/complaints"); // <-- correct backend URL
+        const data = await res.json();
+
+        // Heatmap: [lat, lng, weight]
+        const heatData = data.map(c => [c.lat, c.lng, 1]);
+        if (heatLayer) map.removeLayer(heatLayer);
+
+        heatLayer = L.heatLayer(heatData, { radius: 40, blur: 25 }).addTo(map);
+
+        // Markers for info
+        data.forEach(c => {
+          L.circleMarker([c.lat, c.lng], {
+            radius: 8,
+            fillColor: c.overdue ? "red" : "blue",
+            color: "#000",
+            weight: 1,
+            opacity: 1,
+            fillOpacity: 0.8
+          })
+          .addTo(map)
+          .bindPopup(`
+            <b>${c.city}, ${c.country}</b><br>
+            ${c.description}<br>
+            Status: ${c.status}<br>
+            Created: ${new Date(c.createdAt).toLocaleString()}<br>
+            SLA: ${c.slaHours}h<br>
+            ${c.overdue ? "<span style='color:red'>⚠ Overdue!</span>" : "<span style='color:green'>Within SLA</span>"}
+          `);
+        });
+
+      } catch(err) {
+        console.error("Error loading complaints:", err);
+      }
+    }
+
+    loadHeatmap();
+  </script>
+</body>
+</html>
