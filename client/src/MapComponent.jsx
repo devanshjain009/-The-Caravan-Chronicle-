@@ -8,7 +8,6 @@ export default function MapComponent() {
   const markersRef = useRef([]);
 
   useEffect(() => {
-    // initialize map once
     if (!mapRef.current) {
       mapRef.current = L.map("map").setView([20.5937, 78.9629], 5);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -20,22 +19,14 @@ export default function MapComponent() {
       try {
         const res = await fetch("http://localhost:3000/api/complaints");
         const data = await res.json();
-
-        // remove previous heat
         if (heatLayerRef.current) {
           mapRef.current.removeLayer(heatLayerRef.current);
           heatLayerRef.current = null;
         }
-
-        // create heat data [lat, lng, weight] (weight=1 each; density causes intensity)
         const heatData = data.map(c => [c.lat, c.lng, 1]);
         heatLayerRef.current = L.heatLayer(heatData, { radius: 35, blur: 25 }).addTo(mapRef.current);
-
-        // remove old markers
         markersRef.current.forEach(m => mapRef.current.removeLayer(m));
         markersRef.current = [];
-
-        // add circle markers for SLA (red = overdue, blue = within SLA)
         data.forEach(c => {
           const circle = L.circleMarker([c.lat, c.lng], {
             radius: 6,
@@ -61,11 +52,7 @@ export default function MapComponent() {
         console.error("Error loading complaints:", err);
       }
     }
-
-    // initial
     loadHeatmap();
-
-    // auto refresh every 30s
     const id = setInterval(loadHeatmap, 30000);
     return () => clearInterval(id);
   }, []);
